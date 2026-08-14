@@ -7,7 +7,7 @@ on:
 
 env:
   BACKEND_REPO: backend
-  DESTINATION_BRANCH: main
+  BACKEND_BRANCH: main
 
 jobs:
   sync:
@@ -26,13 +26,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/${{ env.BACKEND_REPO }}
-          token: ${{ secrets.DEST_REPO_PAT }}
-          path: destination
+          token: ${{ secrets.BACK_REPO_PAT }}
+          path: backend
 
       - name: Sync source to backend on a branch
         working-directory: backend
         run: |
-          BRANCH_NAME="sync-source-${GITHUB_SHA::7}"
+          BRANCH_NAME="sync-frontend-${GITHUB_SHA::7}"
           git checkout -B "$BRANCH_NAME"
           rsync -a --delete \
             --exclude='.git' \
