@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  DESTINATION_REPO: destination
+  BACKEND_REPO: backend
   DESTINATION_BRANCH: main
 
 jobs:
@@ -22,15 +22,15 @@ jobs:
         with:
           path: source
 
-      - name: Checkout destination repo
+      - name: Checkout backend repo
         uses: actions/checkout@v4
         with:
-          repository: ${{ github.repository_owner }}/${{ env.DESTINATION_REPO }}
+          repository: ${{ github.repository_owner }}/${{ env.BACKEND_REPO }}
           token: ${{ secrets.DEST_REPO_PAT }}
           path: destination
 
-      - name: Sync source to destination on a branch
-        working-directory: destination
+      - name: Sync source to backend on a branch
+        working-directory: backend
         run: |
           BRANCH_NAME="sync-source-${GITHUB_SHA::7}"
           git checkout -B "$BRANCH_NAME"
@@ -51,14 +51,14 @@ jobs:
           git push origin "$BRANCH_NAME"
           echo "BRANCH_NAME=$BRANCH_NAME" >> "$GITHUB_ENV"
 
-      - name: Create pull request in destination repo
+      - name: Create pull request in backend repo
         env:
-          GH_TOKEN: ${{ secrets.DEST_REPO_PAT }}
+          GH_TOKEN: ${{ secrets.BACK_REPO_PAT }}
         run: |
-          if ! gh pr view --repo "${{ github.repository_owner }}/${{ env.DESTINATION_REPO }}" "$BRANCH_NAME" >/dev/null 2>&1; then
+          if ! gh pr view --repo "${{ github.repository_owner }}/${{ env.BACKEND_REPO }}" "$BRANCH_NAME" >/dev/null 2>&1; then
             gh pr create \
-              --repo "${{ github.repository_owner }}/${{ env.DESTINATION_REPO }}" \
-              --base "${{ env.DESTINATION_BRANCH }}" \
+              --repo "${{ github.repository_owner }}/${{ env.BACKEND_REPO }}" \
+              --base "${{ env.BACKEND_BRANCH }}" \
               --head "$BRANCH_NAME" \
               --title "Sync from source" \
               --body "Automated sync from the source repository"
