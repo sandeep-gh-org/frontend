@@ -1,0 +1,67 @@
+name: frontend sync to backend
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  DESTINATION_REPO: destination
+  DESTINATION_BRANCH: main
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout source repo
+        uses: actions/checkout@v4
+        with:
+          path: source
+
+      - name: Checkout destination repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/${{ env.DESTINATION_REPO }}
+          token: ${{ secrets.DEST_REPO_PAT }}
+          path: destination
+
+      - name: Sync source to destination on a branch
+        working-directory: destination
+        run: |
+          BRANCH_NAME="sync-source-${GITHUB_SHA::7}"
+          git checkout -B "$BRANCH_NAME"
+          rsync -a --delete \
+            --exclude='.git' \
+            --exclude='.github' \
+            ../source/ ./
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          if git diff --cached --quiet; then
+            echo "No changes to sync."
+            exit 0
+          fi
+
+          git commit -m "sync: mirror source ${{ github.sha }}"
+          git push origin "$BRANCH_NAME"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> "$GITHUB_ENV"
+
+      - name: Create pull request in destination repo
+        env:
+          GH_TOKEN: ${{ secrets.DEST_REPO_PAT }}
+        run: |
+          if ! gh pr view --repo "${{ github.repository_owner }}/${{ env.DESTINATION_REPO }}" "$BRANCH_NAME" >/dev/null 2>&1; then
+            gh pr create \
+              --repo "${{ github.repository_owner }}/${{ env.DESTINATION_REPO }}" \
+              --base "${{ env.DESTINATION_BRANCH }}" \
+              --head "$BRANCH_NAME" \
+              --title "Sync from source" \
+              --body "Automated sync from the source repository"
+          else
+            echo "PR for branch $BRANCH_NAME already exists."
+          fi
